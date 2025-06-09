@@ -72,7 +72,8 @@ class AIAGenerator:
         ya_props_dir = os.path.join(src_dir, "appinventor", "ai_user", app_name)
         ya_props_path = os.path.join(ya_props_dir, "youngandroidproject.properties")
         
-        ya_props_content = f"""main={app_data.get('screens', [{}])[0].get('name', 'Screen1')}
+        main_screen = app_data.get('screens', [{}])[0].get('name', 'Screen1')
+        ya_props_content = f"""main={main_screen}
 name={app_name}
 authURL=ai2.appinventor.mit.edu
 YaVersion=208
@@ -89,9 +90,15 @@ Source=Form
         
         properties_content = f"""main=appinventor.ai_user.{app_name}.{main_screen}
 name={app_name}
-assets=..{os.sep}..{os.sep}assets
-source=..{os.sep}..{os.sep}src
-build=..{os.sep}..{os.sep}build
+assets=../assets
+source=../src
+build=../build
+versioncode=1
+versionname=1.0
+useslocation=False
+aname={app_name}
+sizing=Responsive
+showlistsasjson=True
 """
         
         properties_path = os.path.join(temp_dir, "project.properties")
@@ -120,92 +127,107 @@ build=..{os.sep}..{os.sep}build
         screen_title = screen_data.get('title', screen_name)
         app_name = app_data.get('app_name', 'GeneratedApp')
         
-        # Start with screen definition in proper MIT App Inventor format
-        scm_lines = [
-            f"#|",
-            f"$JSON",
-            f'{{',
-            f'  "authURL": ["ai2.appinventor.mit.edu"],',
-            f'  "YaVersion": "208",',
-            f'  "Source": "Form",',
-            f'  "Properties": {{',
-            f'    "$Name": "{screen_name}",',
-            f'    "$Type": "Form",',
-            f'    "$Version": "27",',
-            f'    "AppName": "{app_name}",',
-            f'    "Title": "{screen_title}",',
-            f'    "Uuid": "{self._generate_uuid()}",',
-            f'    "$Components": [',
-        ]
-        
-        # Add components
-        components = screen_data.get('components', [])
-        
-        for i, component in enumerate(components):
-            component_json = self._component_to_json(component)
-            if i < len(components) - 1:
-                scm_lines.append(f'      {component_json},')
-            else:
-                scm_lines.append(f'      {component_json}')
-                
-        scm_lines.extend([
-            '    ]',
-            '  }',
-            '}',
-            '|#'
-        ])
-        
-        return '\n'.join(scm_lines)
-        
-    def _component_to_json(self, component):
-        """Convert component data to JSON string"""
-        comp_data = {
-            "$Name": component.get('name', 'Component1'),
-            "$Type": component.get('type', 'Button'),
-            "$Version": "6",
+        # Create proper MIT App Inventor SCM structure with minimal required properties
+        properties = {
+            "$Name": screen_name,
+            "$Type": "Form",
+            "$Version": "31",
+            "AppName": app_name,
+            "Title": screen_title,
             "Uuid": self._generate_uuid()
         }
         
-        # Add component properties
-        properties = component.get('properties', {})
-        for prop_name, prop_value in properties.items():
-            comp_data[prop_name] = prop_value
-            
+        # Add components if any exist
+        components = screen_data.get('components', [])
+        if components:
+            component_list = []
+            for component in components:
+                component_list.append(self._component_to_dict(component))
+            properties["$Components"] = component_list
+        
+        # Create the full SCM structure exactly as MIT App Inventor expects
+        scm_structure = {
+            "authURL": ["ai2.appinventor.mit.edu"],
+            "YaVersion": "208", 
+            "Source": "Form",
+            "Properties": properties
+        }
+        
+        # Format exactly as MIT App Inventor expects - no extra formatting
+        scm_content = f'#|\n$JSON\n{json.dumps(scm_structure, separators=(",", ":"))}\n|#'
+        return scm_content
+        
+    def _component_to_dict(self, component):
+        """Convert component data to dictionary"""
+        comp_type = component.get('type', 'Button')
+        
+        # Set correct version numbers for different component types
+        version_map = {
+            'Button': '8',
+            'Label': '6', 
+            'TextBox': '6',
+            'Image': '5',
+            'HorizontalArrangement': '5',
+            'VerticalArrangement': '5'
+        }
+        
+        comp_data = {
+            "$Name": component.get('name', 'Component1'),
+            "$Type": comp_type,
+            "$Version": version_map.get(comp_type, "1"),
+            "Uuid": self._generate_uuid()
+        }
+        
+        # Add minimal default properties
+        if comp_type == 'Button':
+            comp_data.update({
+                "Width": "-2",
+                "Height": "-2"
+            })
+        elif comp_type == 'Label':
+            comp_data.update({
+                "Width": "-2", 
+                "Height": "-2"
+            })
+        
         # Add text property if specified
         if 'text' in component:
             comp_data['Text'] = component['text']
             
-        return json.dumps(comp_data, separators=(',', ': '))
+        # Add component properties with proper formatting
+        properties = component.get('properties', {})
+        for prop_name, prop_value in properties.items():
+            # Handle color properties properly
+            if 'Color' in prop_name and isinstance(prop_value, str) and prop_value.startswith('#'):
+                # Convert hex to MIT App Inventor color format
+                hex_val = prop_value[1:]
+                comp_data[prop_name] = f"&HFF{hex_val.upper()}"
+            else:
+                comp_data[prop_name] = prop_value
+            
+        return comp_data
         
     def _generate_bky_content(self, screen_data, app_data):
         """Generate .bky file content (Blockly XML format)"""
         screen_name = screen_data.get('name', 'Screen1')
         
-        # Basic XML structure for blocks
-        bky_content = f'''<xml xmlns="https://developers.google.com/blockly/xml">
-'''
+        # Start with proper XML declaration
+        bky_content = '<xml xmlns="https://developers.google.com/blockly/xml">\n'
         
         # Add blocks based on app_data blocks
         blocks = app_data.get('blocks', [])
-        for i, block in enumerate(blocks):
-            bky_content += self._generate_block_xml(block, i * 100)
+        y_pos = 20
+        
+        for block in blocks:
+            bky_content += self._generate_block_xml(block, y_pos)
+            y_pos += 120
             
         # If no blocks specified, add a basic initialization block
         if not blocks:
-            bky_content += f'''  <block type="component_event" id="basic_block" x="20" y="20">
-    <mutation component_type="Form" event_name="Initialize"></mutation>
-    <field name="component_object">{screen_name}</field>
-    <statement name="DO">
-      <block type="text_print" id="print_block">
-        <value name="TEXT">
-          <block type="text" id="text_block">
-            <field name="TEXT">App initialized!</field>
-          </block>
-        </value>
-      </block>
-    </statement>
-  </block>
-'''
+            bky_content += f'  <block type="component_event" id="{self._generate_uuid()}" x="20" y="20">\n'
+            bky_content += f'    <mutation component_type="Form" event_name="Initialize"></mutation>\n'
+            bky_content += f'    <field name="component_object">{screen_name}</field>\n'
+            bky_content += f'  </block>\n'
         
         bky_content += '</xml>'
         return bky_content
@@ -222,27 +244,43 @@ build=..{os.sep}..{os.sep}build
             component = 'Screen1'
             event_name = 'Initialize'
             
-        block_xml = f'''  <block type="component_event" id="event_{hash(event) % 10000}" x="20" y="{20 + y_offset}">
-    <mutation component_type="Button" event_name="{event_name}"></mutation>
-    <field name="component_object">{component}</field>
-    <statement name="DO">
-      <block type="text_print" id="action_{hash(action) % 10000}">
-        <value name="TEXT">
-          <block type="text" id="text_{hash(action) % 10000}">
-            <field name="TEXT">{action}</field>
-          </block>
-        </value>
-      </block>
-    </statement>
-  </block>
-'''
+        # Determine component type based on component name
+        comp_type = "Form"
+        if "Button" in component:
+            comp_type = "Button"
+        elif "Label" in component:
+            comp_type = "Label"
+        elif "TextBox" in component:
+            comp_type = "TextBox"
+            
+        block_id = self._generate_uuid()
+        action_id = self._generate_uuid()
+        
+        block_xml = f'  <block type="component_event" id="{block_id}" x="20" y="{y_offset}">\n'
+        block_xml += f'    <mutation component_type="{comp_type}" event_name="{event_name}"></mutation>\n'
+        block_xml += f'    <field name="component_object">{component}</field>\n'
+        
+        # Add simple action if specified
+        if action and action != 'do nothing':
+            block_xml += f'    <statement name="DO">\n'
+            block_xml += f'      <block type="lexical_variable_set" id="{action_id}">\n'
+            block_xml += f'        <field name="VAR">global temp</field>\n'
+            block_xml += f'        <value name="VALUE">\n'
+            block_xml += f'          <block type="text" id="{self._generate_uuid()}">\n'
+            block_xml += f'            <field name="TEXT">{action}</field>\n'
+            block_xml += f'          </block>\n'
+            block_xml += f'        </value>\n'
+            block_xml += f'      </block>\n'
+            block_xml += f'    </statement>\n'
+            
+        block_xml += f'  </block>\n'
         return block_xml
         
     def _generate_uuid(self):
-        """Generate a simple UUID-like string"""
-        import random
-        import string
-        return ''.join(random.choices(string.ascii_letters + string.digits, k=8))
+        """Generate a UUID-like string matching MIT App Inventor format"""
+        import uuid
+        # MIT App Inventor uses standard UUID4 format with dashes removed
+        return str(uuid.uuid4()).replace('-', '')
         
     def _create_zip_file(self, source_dir, output_path):
         """Create ZIP file from directory contents"""
