@@ -39,7 +39,7 @@ class AIAGenerator:
 
                 # Validate the generated AIA file
                 if not self._validate_aia_file(aia_path):
-                    raise Exception("Generated AIA file failed validation - not compatible with MIT App Inventor")
+                    raise Exception("⚠️ GENERATED FILE IS NOT A VALID AIA FILE ⚠️\n\nThe generated file cannot be opened in MIT App Inventor because it doesn't match the required format. This usually means the app structure is too complex or uses unsupported features.")
 
                 logging.info(f"AIA file created: {aia_path}")
                 return aia_path
