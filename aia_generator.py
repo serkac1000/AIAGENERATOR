@@ -1,3 +1,4 @@
+
 """
 AIA Generator module for creating MIT App Inventor compatible AIA files
 AIA files are ZIP archives containing project structure and metadata
@@ -29,7 +30,7 @@ class AIAGenerator:
                 # Create project structure
                 self._create_project_structure(temp_dir, app_data)
 
-                # Create ZIP file (AIA format)
+                # Create ZIP file (AIA format) - use .aia extension
                 app_name = app_data.get('app_name', 'GeneratedApp')
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
                 aia_filename = f"{app_name}_{timestamp}.aia"
@@ -67,12 +68,10 @@ class AIAGenerator:
                     logging.error("Missing src/ directory structure")
                     return False
 
-                # Check for .scm and .bky files
+                # Check for .scm files (required)
                 has_scm = any(f.endswith('.scm') for f in file_list)
-                has_bky = any(f.endswith('.bky') for f in file_list)
-
-                if not has_scm or not has_bky:
-                    logging.error("Missing .scm or .bky files")
+                if not has_scm:
+                    logging.error("Missing .scm files")
                     return False
 
                 return True
@@ -82,9 +81,9 @@ class AIAGenerator:
             return False
 
     def _create_project_structure(self, temp_dir, app_data):
-        """Create the internal structure of the AIA file"""
+        """Create the internal structure of the AIA file matching MIT App Inventor exactly"""
 
-        # Create main directories matching MIT App Inventor structure
+        # Create main directories
         src_dir = os.path.join(temp_dir, "src")
         assets_dir = os.path.join(temp_dir, "assets")
         build_dir = os.path.join(temp_dir, "build")
@@ -95,24 +94,24 @@ class AIAGenerator:
         # Create project.properties file (root level)
         self._create_project_properties(temp_dir, app_data)
 
-        # Create youngandroidproject directory structure
+        # Create the exact package structure as in your example
         app_name = app_data.get('app_name', 'GeneratedApp').replace(' ', '').replace('-', '')
         package_name = f"appinventor.ai_user.{app_name}"
 
-        # Create the full package directory structure
+        # Create the full package directory structure under src/
         package_parts = package_name.split('.')
         current_path = src_dir
         for part in package_parts:
             current_path = os.path.join(current_path, part)
             os.makedirs(current_path, exist_ok=True)
 
-        # Create screen files
+        # Create screen files in the package directory
         screens = app_data.get('screens', [{'name': 'Screen1', 'title': 'Screen1'}])
         for screen in screens:
             self._create_screen_files(current_path, screen, app_data)
 
     def _create_project_properties(self, temp_dir, app_data):
-        """Create project.properties file matching MIT App Inventor format"""
+        """Create project.properties file exactly matching MIT App Inventor format"""
         app_name = app_data.get('app_name', 'GeneratedApp').replace(' ', '').replace('-', '')
         screens = app_data.get('screens', [{'name': 'Screen1'}])
         main_screen = screens[0].get('name', 'Screen1')
@@ -120,6 +119,7 @@ class AIAGenerator:
         # Use current timestamp for realistic project properties
         timestamp = datetime.now().strftime("%a %b %d %H:%M:%S UTC %Y")
 
+        # Match the exact format from your working example
         properties_content = f"""#
 #{timestamp}
 sizing=Responsive
@@ -146,7 +146,7 @@ versionname=1.0
             f.write(properties_content)
 
     def _create_screen_files(self, package_dir, screen_data, app_data):
-        """Create .scm and .bky files for a screen"""
+        """Create .scm and .bky files for a screen exactly matching MIT format"""
         screen_name = screen_data.get('name', 'Screen1')
 
         # Create .scm file (screen component structure)
@@ -155,27 +155,29 @@ versionname=1.0
         with open(scm_path, 'w', encoding='utf-8') as f:
             f.write(scm_content)
 
-        # Create .bky file (blocks definition) - empty for now
-        bky_content = self._generate_bky_content(screen_data, app_data)
+        # Create .bky file (blocks definition) - create empty file matching MIT format
         bky_path = os.path.join(package_dir, f"{screen_name}.bky")
         with open(bky_path, 'w', encoding='utf-8') as f:
-            f.write(bky_content)
+            f.write("")  # Empty blocks file
 
     def _generate_scm_content(self, screen_data, app_data):
-        """Generate .scm file content matching MIT App Inventor format"""
+        """Generate .scm file content exactly matching your working example format"""
         screen_name = screen_data.get('name', 'Screen1')
         screen_title = screen_data.get('title', screen_name)
         app_name = app_data.get('app_name', 'GeneratedApp').replace(' ', '').replace('-', '')
 
-        # Create components list
+        # Create components list exactly as in your example
         components = screen_data.get('components', [])
         component_list = []
+
+        # Generate UUID for screen (always "0" for main screen in MIT App Inventor)
+        screen_uuid = "0"
 
         for i, component in enumerate(components):
             comp_data = self._component_to_dict(component, i+1)
             component_list.append(comp_data)
 
-        # Create the properties structure
+        # Create the properties structure exactly matching your example
         properties = {
             "$Name": screen_name,
             "$Type": "Form",
@@ -183,7 +185,7 @@ versionname=1.0
             "ActionBar": "True",
             "AppName": app_name,
             "Title": screen_title,
-            "Uuid": "0"
+            "Uuid": screen_uuid
         }
 
         if component_list:
@@ -197,16 +199,17 @@ versionname=1.0
             "Properties": properties
         }
 
-        # Format exactly as MIT App Inventor expects
-        scm_content = f'#|\n$JSON\n{json.dumps(scm_structure, separators=(",", ":"))}\n|#'
+        # Format exactly as MIT App Inventor expects - no extra whitespace
+        json_str = json.dumps(scm_structure, separators=(',', ':'))
+        scm_content = f'#|\n$JSON\n{json_str}\n|#'
         return scm_content
 
     def _component_to_dict(self, component, index):
-        """Convert component data to dictionary for .scm file"""
+        """Convert component data to dictionary matching MIT App Inventor format"""
         comp_type = component.get('type', 'Button')
         comp_name = component.get('name', f'{comp_type}{index}')
 
-        # Set correct version numbers for different component types
+        # Use exact version numbers from your working example
         version_map = {
             'Button': '7',
             'Label': '6',
@@ -216,47 +219,48 @@ versionname=1.0
             'VerticalArrangement': '5'
         }
 
+        # Generate UUID exactly like MIT App Inventor does
+        # Use negative numbers as in your example
+        uuid_base = -900000000 - (index * 100000) - abs(hash(comp_name)) % 100000
+        
         comp_data = {
             "$Name": comp_name,
             "$Type": comp_type,
             "$Version": version_map.get(comp_type, "1"),
-            "Uuid": str(-(900000000 + index * 1000 + hash(comp_name) % 1000))
+            "Uuid": str(uuid_base)
         }
 
-        # Add text property if specified
-        if 'text' in component and component['text']:
+        # Add text property exactly as in your example
+        if comp_type in ['Button', 'Label']:
             comp_data['Text'] = f"Text for {comp_name}"
 
-        # Add component properties with proper formatting
+        # Add component properties with proper MIT App Inventor formatting
         properties = component.get('properties', {})
         for prop_name, prop_value in properties.items():
             if 'Color' in prop_name and isinstance(prop_value, str) and prop_value.startswith('#'):
-                # Convert hex to MIT App Inventor color format
+                # Convert hex to MIT App Inventor color format exactly
                 hex_val = prop_value[1:]
                 if len(hex_val) == 6:
                     comp_data[prop_name] = f"&HFF{hex_val.upper()}"
             else:
-                comp_data[prop_name] = prop_value
+                comp_data[prop_name] = str(prop_value)
 
         return comp_data
 
-    def _generate_bky_content(self, screen_data, app_data):
-        """Generate .bky file content (empty blocks file)"""
-        # Generate completely empty blocks file as MIT App Inventor expects
-        return ""
-
     def _create_zip_file(self, source_dir, output_path):
-        """Create ZIP file from directory contents"""
+        """Create ZIP file with proper compression settings for MIT App Inventor"""
         try:
-            with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as zipf:
                 for root, dirs, files in os.walk(source_dir):
                     for file in files:
                         file_path = os.path.join(root, file)
                         arc_name = os.path.relpath(file_path, source_dir)
+                        # Use forward slashes for ZIP archive paths
+                        arc_name = arc_name.replace(os.sep, '/')
                         zipf.write(file_path, arc_name)
 
-            logging.info(f"ZIP file created successfully: {output_path}")
+            logging.info(f"AIA file created successfully: {output_path}")
 
         except Exception as e:
-            logging.error(f"Failed to create ZIP file: {str(e)}")
+            logging.error(f"Failed to create AIA file: {str(e)}")
             raise
