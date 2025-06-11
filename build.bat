@@ -24,7 +24,12 @@ if errorlevel 1 (
 
 REM Build executable
 echo Building executable...
-pyinstaller --onefile --windowed --name "AIA_Generator" --icon=app_icon.ico main.py
+if exist "app_icon.ico" (
+    pyinstaller --onefile --windowed --name "AIA_Generator" --icon=app_icon.ico main.py
+) else (
+    echo Icon file not found, building without icon...
+    pyinstaller --onefile --windowed --name "AIA_Generator" main.py
+)
 
 REM Check if build was successful
 if exist "dist\AIA_Generator.exe" (
