@@ -34,7 +34,8 @@ class AIAGenerator:
                 # Create ZIP file (AIA format) - use .aia extension
                 app_name = app_data.get('app_name', 'GeneratedApp')
                 timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                aia_filename = f"{app_name}_{timestamp}.aia"
+                random_id = random.randint(100000000000, 999999999999)
+                aia_filename = f"{app_name}_{timestamp}_{random_id}.aia"
                 aia_path = os.path.join(self.output_dir, aia_filename)
 
                 self._create_zip_file(temp_dir, aia_path)
@@ -95,11 +96,11 @@ class AIAGenerator:
         # Create project.properties file (root level)
         self._create_project_properties(temp_dir, app_data)
 
-        # Generate a random user identifier to replace hardcoded one
-        user_id = f"user{random.randint(100000, 999999)}"
+        # Generate a realistic user identifier
+        user_id = f"serkac{random.randint(100, 999)}"
         app_name = app_data.get('app_name', 'GeneratedApp').replace(' ', '').replace('-', '')
         
-        # Create proper package structure
+        # Create proper package structure - exactly like your reference
         package_name = f"appinventor.ai_{user_id}.{app_name}"
 
         # Create the full package directory structure under src/
@@ -120,13 +121,13 @@ class AIAGenerator:
         screens = app_data.get('screens', [{'name': 'Screen1'}])
         main_screen = screens[0].get('name', 'Screen1')
         
-        # Generate a random user identifier
-        user_id = f"user{random.randint(100000, 999999)}"
+        # Generate a realistic user identifier
+        user_id = f"serkac{random.randint(100, 999)}"
 
         # Use current timestamp for realistic project properties
         timestamp = datetime.now().strftime("%a %b %d %H:%M:%S UTC %Y")
 
-        # Match the exact format from working reference
+        # Match the exact format from your working reference
         properties_content = f"""#
 #{timestamp}
 sizing=Responsive
@@ -149,7 +150,7 @@ versionname=1.0
 """
 
         properties_path = os.path.join(temp_dir, "project.properties")
-        with open(properties_path, 'w', encoding='utf-8') as f:
+        with open(properties_path, 'w', encoding='utf-8', newline='\n') as f:
             f.write(properties_content)
 
     def _create_screen_files(self, package_dir, screen_data, app_data, package_name):
@@ -159,12 +160,12 @@ versionname=1.0
         # Create .scm file (screen component structure)
         scm_content = self._generate_scm_content(screen_data, app_data)
         scm_path = os.path.join(package_dir, f"{screen_name}.scm")
-        with open(scm_path, 'w', encoding='utf-8') as f:
+        with open(scm_path, 'w', encoding='utf-8', newline='\n') as f:
             f.write(scm_content)
 
-        # Create .bky file (blocks definition) - empty file like your reference
+        # Create .bky file (blocks definition) - empty file exactly like your reference
         bky_path = os.path.join(package_dir, f"{screen_name}.bky")
-        with open(bky_path, 'w', encoding='utf-8') as f:
+        with open(bky_path, 'w', encoding='utf-8', newline='\n') as f:
             f.write("")  # Empty blocks file exactly like your reference
 
     def _generate_scm_content(self, screen_data, app_data):
@@ -177,9 +178,15 @@ versionname=1.0
         components = screen_data.get('components', [])
         component_list = []
 
-        # Generate components with proper structure
+        # Generate UUIDs exactly like MIT App Inventor - negative integers
+        used_uuids = set()
+        
+        # Generate components with proper structure and unique UUIDs
         for i, component in enumerate(components):
-            comp_data = self._component_to_dict(component, i+1)
+            # Generate unique negative UUID like in your reference
+            uuid_val = self._generate_unique_uuid(used_uuids)
+            used_uuids.add(uuid_val)
+            comp_data = self._component_to_dict(component, i+1, uuid_val)
             component_list.append(comp_data)
 
         # Create the properties structure exactly matching your reference
@@ -209,7 +216,15 @@ versionname=1.0
         scm_content = f'#|\n$JSON\n{json_str}\n|#'
         return scm_content
 
-    def _component_to_dict(self, component, index):
+    def _generate_unique_uuid(self, used_uuids):
+        """Generate unique negative UUID like MIT App Inventor uses"""
+        while True:
+            # Generate negative integer UUID like in your reference (-901602570, -613462190)
+            uuid_val = str(-random.randint(100000000, 999999999))
+            if uuid_val not in used_uuids:
+                return uuid_val
+
+    def _component_to_dict(self, component, index, uuid_val):
         """Convert component data to dictionary matching your reference format exactly"""
         comp_type = component.get('type', 'Button')
         comp_name = component.get('name', f'{comp_type}{index}')
@@ -227,7 +242,8 @@ versionname=1.0
         comp_data = {
             "$Name": comp_name,
             "$Type": comp_type,
-            "$Version": version_map.get(comp_type, "1")
+            "$Version": version_map.get(comp_type, "1"),
+            "Uuid": uuid_val
         }
 
         # Add text property exactly as in your reference
@@ -250,7 +266,8 @@ versionname=1.0
     def _create_zip_file(self, source_dir, output_path):
         """Create ZIP file with proper compression settings for MIT App Inventor"""
         try:
-            with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_DEFLATED, compresslevel=6) as zipf:
+            # Use no compression like MIT App Inventor exports
+            with zipfile.ZipFile(output_path, 'w', zipfile.ZIP_STORED) as zipf:
                 for root, dirs, files in os.walk(source_dir):
                     for file in files:
                         file_path = os.path.join(root, file)
