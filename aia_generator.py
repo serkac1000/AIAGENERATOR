@@ -216,35 +216,37 @@ versionname=1.0
 
     def _generate_bky_content(self, screen_data, app_data):
         """Generate proper .bky file content with minimal valid XML structure"""
-        # Create minimal but valid XML structure as per the plan
+        # Create minimal but valid XML structure as per MIT App Inventor requirements
         bky_content = """<xml xmlns="http://www.w3.org/1999/xhtml">
   <yacodeblocks ya-version="232" language-version="31">
   </yacodeblocks>
 </xml>"""
         
-        # Check if we have button components and add click events
+        # Check if we have button components and add simple click events
         components = screen_data.get('components', [])
         buttons = [comp for comp in components if comp.get('type') == 'Button']
+        labels = [comp for comp in components if comp.get('type') == 'Label']
         
-        if buttons:
-            # Generate click events for buttons
+        if buttons and labels:
+            # Generate simple click events for buttons that update the first label
             events_xml = []
             y_position = 50
+            target_label = labels[0].get('name', 'LabelResult')
             
             for i, button in enumerate(buttons):
                 button_name = button.get('name', f'Button{i+1}')
-                event_xml = f"""    <block type="component_event" x="50" y="{y_position}">
-      <mutation component_type="Button" event_name="Click" component_id="{button_name}"></mutation>
-      <field name="component_id">{button_name}</field>
-      <field name="event_name">Click</field>
+                # Create proper MIT App Inventor block structure
+                event_xml = f"""    <block type="component_event" id="event_{button_name}" x="50" y="{y_position}">
+      <mutation component_type="Button" event_name="Click"></mutation>
+      <field name="component_object">{button_name}</field>
       <statement name="DO">
-        <block type="component_set_get_property">
-          <mutation component_type="Label" property_name="Text"></mutation>
-          <field name="component_id">LabelResult</field>
-          <field name="property_name">Text</field>
+        <block type="component_set_get" id="set_{button_name}">
+          <mutation component_type="Label" set_or_get="set" property_name="Text" is_generic="false" instance_name="{target_label}"></mutation>
+          <field name="COMPONENT_SELECTOR">{target_label}</field>
+          <field name="PROP">Text</field>
           <value name="VALUE">
-            <block type="text">
-              <field name="TEXT">{button_name} Clicked!</field>
+            <block type="text" id="text_{button_name}">
+              <field name="TEXT">{button_name} was clicked!</field>
             </block>
           </value>
         </block>
@@ -253,7 +255,7 @@ versionname=1.0
                 events_xml.append(event_xml)
                 y_position += 150
             
-            # Combine minimal structure with events
+            # Create proper XML structure with events
             if events_xml:
                 bky_content = f"""<xml xmlns="http://www.w3.org/1999/xhtml">
   <yacodeblocks ya-version="232" language-version="31">
@@ -296,6 +298,23 @@ versionname=1.0
         # Add text property exactly as in reference
         if comp_type in ['Button', 'Label']:
             comp_data['Text'] = f"Text for {comp_name}"
+
+        # Add proper sizing and layout properties for buttons
+        if comp_type == 'Button':
+            comp_data['Width'] = 'Fill parent'
+            comp_data['Height'] = 'Automatic'
+            # Add default colors if not specified
+            if 'BackgroundColor' not in component.get('properties', {}):
+                comp_data['BackgroundColor'] = '&HFF4CAF50'  # Green
+            if 'TextColor' not in component.get('properties', {}):
+                comp_data['TextColor'] = '&HFFFFFFFF'  # White
+
+        # Add proper sizing for labels
+        if comp_type == 'Label':
+            comp_data['Width'] = 'Fill parent'
+            comp_data['Height'] = 'Automatic'
+            comp_data['TextAlignment'] = '1'  # Center alignment
+            comp_data['FontSize'] = '20'
 
         # Add component properties with proper MIT App Inventor formatting
         properties = component.get('properties', {})
