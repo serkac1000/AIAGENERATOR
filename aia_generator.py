@@ -57,23 +57,29 @@ class AIAGenerator:
             with zipfile.ZipFile(aia_path, 'r') as zip_file:
                 file_list = zip_file.namelist()
 
-                # Check for required files
-                required_files = ['project.properties']
+                # Check for required files in correct locations
+                required_files = ['youngandroidproject/project.properties']
                 for req_file in required_files:
                     if req_file not in file_list:
                         logging.error(f"Missing required file: {req_file}")
                         return False
 
                 # Check for src directory structure
-                has_src = any(f.startswith('src/') for f in file_list)
+                has_src = any(f.startswith('src/appinventor/') for f in file_list)
                 if not has_src:
-                    logging.error("Missing src/ directory structure")
+                    logging.error("Missing src/appinventor/ directory structure")
                     return False
 
                 # Check for .scm files (required)
                 has_scm = any(f.endswith('.scm') for f in file_list)
                 if not has_scm:
                     logging.error("Missing .scm files")
+                    return False
+
+                # Check for .bky files (required)
+                has_bky = any(f.endswith('.bky') for f in file_list)
+                if not has_bky:
+                    logging.error("Missing .bky files")
                     return False
 
                 return True
@@ -85,49 +91,40 @@ class AIAGenerator:
     def _create_project_structure(self, temp_dir, app_data):
         """Create the internal structure of the AIA file matching MIT App Inventor exactly"""
 
-        # Create main directories
-        src_dir = os.path.join(temp_dir, "src")
+        # Create main directories following exact MIT App Inventor structure
         assets_dir = os.path.join(temp_dir, "assets")
-        build_dir = os.path.join(temp_dir, "build")
-        os.makedirs(src_dir, exist_ok=True)
+        youngandroid_dir = os.path.join(temp_dir, "youngandroidproject")
         os.makedirs(assets_dir, exist_ok=True)
-        os.makedirs(build_dir, exist_ok=True)
-
-        # Create project.properties file (root level)
-        self._create_project_properties(temp_dir, app_data)
+        os.makedirs(youngandroid_dir, exist_ok=True)
 
         # Generate a realistic user identifier
-        user_id = f"serkac{random.randint(100, 999)}"
+        user_id = f"ai_serkac{random.randint(100, 999)}"
         app_name = app_data.get('app_name', 'GeneratedApp').replace(' ', '').replace('-', '')
         
-        # Create proper package structure - exactly like your reference
-        package_name = f"appinventor.ai_{user_id}.{app_name}"
+        # Create proper package structure under src/appinventor/ai_user/AppName/
+        src_dir = os.path.join(temp_dir, "src")
+        appinventor_dir = os.path.join(src_dir, "appinventor")
+        user_dir = os.path.join(appinventor_dir, user_id)
+        app_dir = os.path.join(user_dir, app_name)
+        os.makedirs(app_dir, exist_ok=True)
 
-        # Create the full package directory structure under src/
-        package_parts = package_name.split('.')
-        current_path = src_dir
-        for part in package_parts:
-            current_path = os.path.join(current_path, part)
-            os.makedirs(current_path, exist_ok=True)
+        # Create project.properties file in youngandroidproject directory
+        self._create_project_properties(youngandroid_dir, app_data, user_id, app_name)
 
-        # Create screen files in the package directory
+        # Create screen files in the app directory
         screens = app_data.get('screens', [{'name': 'Screen1', 'title': 'Screen1'}])
         for screen in screens:
-            self._create_screen_files(current_path, screen, app_data, package_name)
+            self._create_screen_files(app_dir, screen, app_data, user_id, app_name)
 
-    def _create_project_properties(self, temp_dir, app_data):
+    def _create_project_properties(self, youngandroid_dir, app_data, user_id, app_name):
         """Create project.properties file exactly matching MIT App Inventor format"""
-        app_name = app_data.get('app_name', 'GeneratedApp').replace(' ', '').replace('-', '')
         screens = app_data.get('screens', [{'name': 'Screen1'}])
         main_screen = screens[0].get('name', 'Screen1')
-        
-        # Generate a realistic user identifier
-        user_id = f"serkac{random.randint(100, 999)}"
 
         # Use current timestamp for realistic project properties
         timestamp = datetime.now().strftime("%a %b %d %H:%M:%S UTC %Y")
 
-        # Match the exact format from your working reference
+        # Match the exact format from the working reference
         properties_content = f"""#
 #{timestamp}
 sizing=Responsive
@@ -136,7 +133,7 @@ color.primary=&HFF3F51B5
 color.accent=&HFFFF4081
 aname={app_name}
 defaultfilescope=App
-main=appinventor.ai_{user_id}.{app_name}.{main_screen}
+main=appinventor.{user_id}.{app_name}.{main_screen}
 source=../src
 actionbar=True
 useslocation=False
@@ -149,32 +146,33 @@ versioncode=1
 versionname=1.0
 """
 
-        properties_path = os.path.join(temp_dir, "project.properties")
+        properties_path = os.path.join(youngandroid_dir, "project.properties")
         with open(properties_path, 'w', encoding='utf-8', newline='\n') as f:
             f.write(properties_content)
 
-    def _create_screen_files(self, package_dir, screen_data, app_data, package_name):
+    def _create_screen_files(self, app_dir, screen_data, app_data, user_id, app_name):
         """Create .scm and .bky files for a screen exactly matching MIT format"""
         screen_name = screen_data.get('name', 'Screen1')
 
         # Create .scm file (screen component structure)
         scm_content = self._generate_scm_content(screen_data, app_data)
-        scm_path = os.path.join(package_dir, f"{screen_name}.scm")
+        scm_path = os.path.join(app_dir, f"{screen_name}.scm")
         with open(scm_path, 'w', encoding='utf-8', newline='\n') as f:
             f.write(scm_content)
 
-        # Create .bky file (blocks definition) - empty file exactly like your reference
-        bky_path = os.path.join(package_dir, f"{screen_name}.bky")
+        # Create .bky file (blocks definition) - proper XML structure instead of empty file
+        bky_content = self._generate_bky_content(screen_data, app_data)
+        bky_path = os.path.join(app_dir, f"{screen_name}.bky")
         with open(bky_path, 'w', encoding='utf-8', newline='\n') as f:
-            f.write("")  # Empty blocks file exactly like your reference
+            f.write(bky_content)
 
     def _generate_scm_content(self, screen_data, app_data):
-        """Generate .scm file content exactly matching your working reference format"""
+        """Generate .scm file content exactly matching working reference format"""
         screen_name = screen_data.get('name', 'Screen1')
         screen_title = screen_data.get('title', screen_name)
         app_name = app_data.get('app_name', 'GeneratedApp').replace(' ', '').replace('-', '')
 
-        # Create components list exactly as in your reference
+        # Create components list exactly as in reference
         components = screen_data.get('components', [])
         component_list = []
 
@@ -183,13 +181,13 @@ versionname=1.0
         
         # Generate components with proper structure and unique UUIDs
         for i, component in enumerate(components):
-            # Generate unique negative UUID like in your reference
+            # Generate unique negative UUID like in reference
             uuid_val = self._generate_unique_uuid(used_uuids)
             used_uuids.add(uuid_val)
             comp_data = self._component_to_dict(component, i+1, uuid_val)
             component_list.append(comp_data)
 
-        # Create the properties structure exactly matching your reference
+        # Create the properties structure exactly matching reference
         properties = {
             "$Name": screen_name,
             "$Type": "Form",
@@ -203,7 +201,7 @@ versionname=1.0
         if component_list:
             properties["$Components"] = component_list
 
-        # Create the full SCM structure exactly as your reference
+        # Create the full SCM structure exactly as reference
         scm_structure = {
             "authURL": ["ai2.appinventor.mit.edu"],
             "YaVersion": "232",
@@ -211,25 +209,74 @@ versionname=1.0
             "Properties": properties
         }
 
-        # Format exactly as MIT App Inventor expects - compact JSON like your reference
+        # Format exactly as MIT App Inventor expects - compact JSON like reference
         json_str = json.dumps(scm_structure, separators=(',', ':'))
         scm_content = f'#|\n$JSON\n{json_str}\n|#'
         return scm_content
 
+    def _generate_bky_content(self, screen_data, app_data):
+        """Generate proper .bky file content with minimal valid XML structure"""
+        # Create minimal but valid XML structure as per the plan
+        bky_content = """<xml xmlns="http://www.w3.org/1999/xhtml">
+  <yacodeblocks ya-version="232" language-version="31">
+  </yacodeblocks>
+</xml>"""
+        
+        # Check if we have button components and add click events
+        components = screen_data.get('components', [])
+        buttons = [comp for comp in components if comp.get('type') == 'Button']
+        
+        if buttons:
+            # Generate click events for buttons
+            events_xml = []
+            y_position = 50
+            
+            for i, button in enumerate(buttons):
+                button_name = button.get('name', f'Button{i+1}')
+                event_xml = f"""    <block type="component_event" x="50" y="{y_position}">
+      <mutation component_type="Button" event_name="Click" component_id="{button_name}"></mutation>
+      <field name="component_id">{button_name}</field>
+      <field name="event_name">Click</field>
+      <statement name="DO">
+        <block type="component_set_get_property">
+          <mutation component_type="Label" property_name="Text"></mutation>
+          <field name="component_id">LabelResult</field>
+          <field name="property_name">Text</field>
+          <value name="VALUE">
+            <block type="text">
+              <field name="TEXT">{button_name} Clicked!</field>
+            </block>
+          </value>
+        </block>
+      </statement>
+    </block>"""
+                events_xml.append(event_xml)
+                y_position += 150
+            
+            # Combine minimal structure with events
+            if events_xml:
+                bky_content = f"""<xml xmlns="http://www.w3.org/1999/xhtml">
+  <yacodeblocks ya-version="232" language-version="31">
+{chr(10).join(events_xml)}
+  </yacodeblocks>
+</xml>"""
+        
+        return bky_content
+
     def _generate_unique_uuid(self, used_uuids):
         """Generate unique negative UUID like MIT App Inventor uses"""
         while True:
-            # Generate negative integer UUID like in your reference (-901602570, -613462190)
+            # Generate negative integer UUID like in reference (-291987386, -406306722, etc.)
             uuid_val = str(-random.randint(100000000, 999999999))
             if uuid_val not in used_uuids:
                 return uuid_val
 
     def _component_to_dict(self, component, index, uuid_val):
-        """Convert component data to dictionary matching your reference format exactly"""
+        """Convert component data to dictionary matching reference format exactly"""
         comp_type = component.get('type', 'Button')
         comp_name = component.get('name', f'{comp_type}{index}')
 
-        # Use exact version numbers from your working reference
+        # Use exact version numbers from working reference
         version_map = {
             'Button': '7',
             'Label': '6',
@@ -246,7 +293,7 @@ versionname=1.0
             "Uuid": uuid_val
         }
 
-        # Add text property exactly as in your reference
+        # Add text property exactly as in reference
         if comp_type in ['Button', 'Label']:
             comp_data['Text'] = f"Text for {comp_name}"
 
