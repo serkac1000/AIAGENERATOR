@@ -11,6 +11,7 @@ import shutil
 from datetime import datetime
 import logging
 import uuid
+import random
 
 class AIAGenerator:
     def __init__(self):
@@ -94,10 +95,12 @@ class AIAGenerator:
         # Create project.properties file (root level)
         self._create_project_properties(temp_dir, app_data)
 
-        # Create the exact package structure as in your reference - using serkac100 as example
+        # Generate a random user identifier to replace hardcoded one
+        user_id = f"user{random.randint(100000, 999999)}"
         app_name = app_data.get('app_name', 'GeneratedApp').replace(' ', '').replace('-', '')
-        # Use the exact format from your reference files
-        package_name = f"appinventor.ai_serkac100.{app_name}"
+        
+        # Create proper package structure
+        package_name = f"appinventor.ai_{user_id}.{app_name}"
 
         # Create the full package directory structure under src/
         package_parts = package_name.split('.')
@@ -109,18 +112,21 @@ class AIAGenerator:
         # Create screen files in the package directory
         screens = app_data.get('screens', [{'name': 'Screen1', 'title': 'Screen1'}])
         for screen in screens:
-            self._create_screen_files(current_path, screen, app_data)
+            self._create_screen_files(current_path, screen, app_data, package_name)
 
     def _create_project_properties(self, temp_dir, app_data):
         """Create project.properties file exactly matching MIT App Inventor format"""
         app_name = app_data.get('app_name', 'GeneratedApp').replace(' ', '').replace('-', '')
         screens = app_data.get('screens', [{'name': 'Screen1'}])
         main_screen = screens[0].get('name', 'Screen1')
+        
+        # Generate a random user identifier
+        user_id = f"user{random.randint(100000, 999999)}"
 
         # Use current timestamp for realistic project properties
         timestamp = datetime.now().strftime("%a %b %d %H:%M:%S UTC %Y")
 
-        # Match the exact format from your working reference
+        # Match the exact format from working reference
         properties_content = f"""#
 #{timestamp}
 sizing=Responsive
@@ -129,7 +135,7 @@ color.primary=&HFF3F51B5
 color.accent=&HFFFF4081
 aname={app_name}
 defaultfilescope=App
-main=appinventor.ai_serkac100.{app_name}.{main_screen}
+main=appinventor.ai_{user_id}.{app_name}.{main_screen}
 source=../src
 actionbar=True
 useslocation=False
@@ -146,7 +152,7 @@ versionname=1.0
         with open(properties_path, 'w', encoding='utf-8') as f:
             f.write(properties_content)
 
-    def _create_screen_files(self, package_dir, screen_data, app_data):
+    def _create_screen_files(self, package_dir, screen_data, app_data, package_name):
         """Create .scm and .bky files for a screen exactly matching MIT format"""
         screen_name = screen_data.get('name', 'Screen1')
 
@@ -171,7 +177,7 @@ versionname=1.0
         components = screen_data.get('components', [])
         component_list = []
 
-        # Generate components with exact UUID format from your reference
+        # Generate components with proper structure
         for i, component in enumerate(components):
             comp_data = self._component_to_dict(component, i+1)
             component_list.append(comp_data)
@@ -181,7 +187,7 @@ versionname=1.0
             "$Name": screen_name,
             "$Type": "Form",
             "$Version": "31",
-            "ActionBar": "True",
+            "ActionBar": True,
             "AppName": app_name,
             "Title": screen_title,
             "Uuid": "0"  # Always "0" for main screen in MIT App Inventor
@@ -218,22 +224,10 @@ versionname=1.0
             'VerticalArrangement': '5'
         }
 
-        # Generate UUID exactly like your reference files
-        # Your reference uses: Button1: "-901602570", Button2: "-613462190"
-        # Pattern: negative numbers in specific ranges
-        if index == 1:
-            uuid_val = "-901602570"
-        elif index == 2:
-            uuid_val = "-613462190"
-        else:
-            # Generate similar pattern for other components
-            uuid_val = str(-900000000 - (index * 288140380))
-        
         comp_data = {
             "$Name": comp_name,
             "$Type": comp_type,
-            "$Version": version_map.get(comp_type, "1"),
-            "Uuid": uuid_val
+            "$Version": version_map.get(comp_type, "1")
         }
 
         # Add text property exactly as in your reference
