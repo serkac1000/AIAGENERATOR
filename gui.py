@@ -295,7 +295,7 @@ class AIAGeneratorGUI:
                 error_msg = f"Generation failed: {str(e)}"
                 logging.error(error_msg)
                 if "failed validation" in str(e).lower():
-                    error_msg = "Generated AIA file is not compatible with MIT App Inventor.\n\nThis usually means the app description was too complex or contained unsupported features.\n\nTry simplifying your app description or contact support."
+                    error_msg = "⚠️ GENERATED FILE IS NOT A VALID AIA FILE ⚠️\n\nThe generated file cannot be opened in MIT App Inventor because it doesn't match the required format.\n\nThis usually means:\n• The app description was too complex\n• Unsupported features were requested\n• File structure doesn't match MIT App Inventor requirements\n\nTry:\n• Simplifying your app description\n• Using basic components only (Button, Label, TextBox)\n• Avoiding complex layouts or advanced features"
                 self.root.after(0, lambda: self.generation_failed(error_msg))
                 
         threading.Thread(target=generate_thread, daemon=True).start()
